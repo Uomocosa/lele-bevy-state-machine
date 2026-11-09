@@ -1,0 +1,46 @@
+[package]
+name = "lele-bevy-state-machine"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[lints.rust]
+non_snake_case = "allow"
+
+[lints.clippy]
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+unreachable = "deny"
+unimplemented = "deny"
+unchecked_time_subtraction = "deny"
+todo = "deny"
+string_slice = "deny"
+panic_in_result_fn = "deny"
+panic = "deny"
+exit = "deny"
+as_conversions = "deny"
+module_inception = "allow"
+missing_errors_doc = "allow"
+
+[dependencies]
+atomic-delegate-macros = { path = "../lele-rust-linter/crates/atomic-delegate-macros" }
+bevy = { version = "=0.20.1", default-features = false }
+derive_more = { version = "=2.1.1", features = ["deref"] }
+
+[features]
+testing = []
+
+# Early-phase profile: optimise for compile time and peak RAM, not runtime speed.
+# Debug info is a big RAM/disk cost; keep only line tables for our crate
+# (readable backtraces) and none for dependencies.
+[profile.dev]
+opt-level = 0
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+debug = false
