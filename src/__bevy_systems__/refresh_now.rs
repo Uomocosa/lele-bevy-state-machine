@@ -1,7 +1,7 @@
 use bevy::prelude::ResMut;
 
+use crate::Clock;
 use crate::basic;
-use crate::clock::Clock;
 
 pub fn refresh_now<T: Clock>(mut now: ResMut<basic::resources::Now<T>>) {
     *now = basic::resources::Now(T::now());
@@ -13,8 +13,8 @@ mod tests {
     use bevy::prelude::*;
     use derive_more::Deref;
 
+    use crate::Clock;
     use crate::basic;
-    use crate::clock::Clock;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Deref)]
     struct FixedNow(u64);

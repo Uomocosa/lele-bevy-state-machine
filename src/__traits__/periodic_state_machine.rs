@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::state_machine::StateMachine;
+use crate::StateMachine;
 
 pub trait PeriodicStateMachine: StateMachine {
     const TICK_INTERVAL: Duration;
@@ -12,8 +12,8 @@ mod tests {
     use super::*;
     use bevy::prelude::{Message, Resource};
 
-    use crate::clock::Clock;
-    use crate::state_machine::StateMachine;
+    use crate::Clock;
+    use crate::StateMachine;
 
     #[derive(Message, Debug, PartialEq)]
     enum HeartbeatInput {

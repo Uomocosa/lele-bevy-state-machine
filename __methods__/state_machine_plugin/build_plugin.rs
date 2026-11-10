@@ -2,10 +2,10 @@
 use bevy::prelude::not;
 use bevy::prelude::{App, First, IntoScheduleConfigs, Last, Messages, Update, resource_exists};
 
+use crate::Clock;
+use crate::StateMachine;
 use crate::basic;
 use crate::bevy_systems;
-use crate::clock::Clock;
-use crate::state_machine::StateMachine;
 use crate::state_machine_plugin::StateMachinePlugin;
 use crate::state_machine_systems::StateMachineSystems;
 #[cfg(feature = "testing")]

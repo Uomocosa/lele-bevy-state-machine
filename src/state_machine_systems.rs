@@ -2,8 +2,8 @@ use std::any::TypeId;
 
 use bevy::prelude::SystemSet;
 
+use crate::StateMachine;
 use crate::basic;
-use crate::state_machine::StateMachine;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StateMachineSystems {
@@ -42,8 +42,8 @@ mod tests {
     use super::*;
     use bevy::prelude::{Message, Resource};
 
-    use crate::clock::Clock;
-    use crate::state_machine::StateMachine;
+    use crate::Clock;
+    use crate::StateMachine;
 
     #[derive(Message)]
     struct ProbeInput;

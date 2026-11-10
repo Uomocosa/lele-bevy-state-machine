@@ -1,7 +1,7 @@
 use bevy::prelude::{MessageWriter, Messages, Res, ResMut};
 
+use crate::StateMachine;
 use crate::basic;
-use crate::state_machine::StateMachine;
 
 pub fn step_state_machine<M: StateMachine>(
     mut machine: ResMut<M>,
@@ -23,9 +23,9 @@ mod tests {
     use bevy::prelude::*;
     use derive_more::Deref;
 
+    use crate::Clock;
+    use crate::StateMachine;
     use crate::basic;
-    use crate::clock::Clock;
-    use crate::state_machine::StateMachine;
 
     #[derive(Message, Deref)]
     struct BumpInput(u32);

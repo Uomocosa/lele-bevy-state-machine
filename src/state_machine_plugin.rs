@@ -4,9 +4,9 @@ use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::{App, IntoScheduleConfigs, Plugin, Update};
 use bevy::time::common_conditions::on_timer;
 
+use crate::PeriodicStateMachine;
+use crate::StateMachine;
 use crate::bevy_systems;
-use crate::periodic_state_machine::PeriodicStateMachine;
-use crate::state_machine::StateMachine;
 use crate::state_machine_systems::StateMachineSystems;
 
 pub struct StateMachinePlugin<M> {
@@ -69,9 +69,9 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
     use derive_more::Deref;
 
+    use crate::Clock;
     #[cfg(feature = "testing")]
     use crate::basic;
-    use crate::clock::Clock;
     #[cfg(feature = "testing")]
     use crate::testing;
 
