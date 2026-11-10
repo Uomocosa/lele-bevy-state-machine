@@ -1,7 +1,7 @@
 use bevy::ecs::component::Mutable;
 use bevy::prelude::{Message, Resource};
 
-use crate::Clock;
+use crate::traits::Clock;
 
 pub trait StateMachine: Resource<Mutability = Mutable> {
     type Input: Message;
@@ -16,7 +16,7 @@ mod tests {
     use bevy::prelude::Message;
     use derive_more::Deref;
 
-    use crate::Clock;
+    use crate::traits::Clock;
 
     #[derive(Message, Deref)]
     struct DoubleInput(u32);

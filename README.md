@@ -6,7 +6,7 @@ plugin wires the schedules around it.
 
 ```rust
 use bevy::prelude::*;
-use lele_bevy_state_machine::{StateMachine, StateMachinePlugin};
+use lele_bevy_state_machine::{StateMachinePlugin, traits::StateMachine};
 
 fn main() {
     App::new().add_plugins((MinimalPlugins, StateMachinePlugin::<MyMachine>::default()));

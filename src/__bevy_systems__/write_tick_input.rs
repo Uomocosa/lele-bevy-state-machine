@@ -1,6 +1,6 @@
 use bevy::prelude::MessageWriter;
 
-use crate::PeriodicStateMachine;
+use crate::traits::PeriodicStateMachine;
 
 pub fn write_tick_input<M: PeriodicStateMachine>(mut inputs: MessageWriter<M::Input>) {
     inputs.write(M::tick_input());
@@ -13,9 +13,7 @@ mod tests {
     use super::*;
     use bevy::prelude::*;
 
-    use crate::Clock;
-    use crate::PeriodicStateMachine;
-    use crate::StateMachine;
+    use crate::traits::{Clock, PeriodicStateMachine, StateMachine};
 
     #[derive(Message, Debug, PartialEq)]
     enum PulseInput {

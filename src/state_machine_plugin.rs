@@ -4,10 +4,9 @@ use atomic_delegate_macros::atomic_delegates;
 use bevy::prelude::{App, IntoScheduleConfigs, Plugin, Update};
 use bevy::time::common_conditions::on_timer;
 
-use crate::PeriodicStateMachine;
-use crate::StateMachine;
 use crate::bevy_systems;
 use crate::state_machine_systems::StateMachineSystems;
+use crate::traits::{PeriodicStateMachine, StateMachine};
 
 pub struct StateMachinePlugin<M> {
     pub(crate) add_tick_system: Option<fn(&mut App)>,
@@ -69,11 +68,10 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
     use derive_more::Deref;
 
-    use crate::Clock;
-    #[cfg(feature = "testing")]
-    use crate::basic;
+    use crate::Now;
     #[cfg(feature = "testing")]
     use crate::testing;
+    use crate::traits::Clock;
 
     #[derive(Resource, Deref)]
     struct CounterMachine(AtomicU32);
@@ -222,14 +220,10 @@ mod tests {
     #[test]
     fn frozen_clock_freezes_now() {
         let mut app = counter_app(StateMachinePlugin::default());
-        app.world_mut()
-            .insert_resource(basic::resources::Now(TestNow(41)));
+        app.world_mut().insert_resource(Now(TestNow(41)));
         app.world_mut().insert_resource(testing::FrozenClock);
         app.update();
         app.update();
-        assert_eq!(
-            **app.world().resource::<basic::resources::Now<TestNow>>(),
-            TestNow(41)
-        );
+        assert_eq!(**app.world().resource::<Now<TestNow>>(), TestNow(41));
     }
 }

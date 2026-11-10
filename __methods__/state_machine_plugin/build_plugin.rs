@@ -2,23 +2,19 @@
 use bevy::prelude::not;
 use bevy::prelude::{App, First, IntoScheduleConfigs, Last, Messages, Update, resource_exists};
 
-use crate::Clock;
-use crate::StateMachine;
-use crate::basic;
+use crate::Now;
 use crate::bevy_systems;
 use crate::state_machine_plugin::StateMachinePlugin;
 use crate::state_machine_systems::StateMachineSystems;
 #[cfg(feature = "testing")]
 use crate::testing;
+use crate::traits::{Clock, StateMachine};
 
 pub fn build_plugin<M: StateMachine>(plugin: &StateMachinePlugin<M>, app: &mut App) {
     app.init_resource::<Messages<M::Input>>();
     app.add_message::<M::Output>();
-    if !app
-        .world()
-        .contains_resource::<basic::resources::Now<M::Now>>()
-    {
-        app.insert_resource(basic::resources::Now(M::Now::now()));
+    if !app.world().contains_resource::<Now<M::Now>>() {
+        app.insert_resource(Now(M::Now::now()));
         #[cfg(feature = "testing")]
         app.add_systems(
             First,

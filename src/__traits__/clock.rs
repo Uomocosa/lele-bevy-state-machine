@@ -6,7 +6,7 @@ pub trait Clock: Copy + Send + Sync + 'static {
 mod tests {
     use derive_more::Deref;
 
-    use crate::Clock;
+    use crate::traits::Clock;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Deref)]
     struct FixedMoment(u64);

@@ -1,5 +1,5 @@
 #[path = "__basic__/mod.rs"]
-pub mod basic;
+mod basic;
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
 #[path = "../__methods__/mod.rs"]
@@ -15,8 +15,5 @@ pub use basic::enums::StateMachineStage;
 pub use basic::resources::Now;
 pub use state_machine_plugin::StateMachinePlugin;
 pub use state_machine_systems::StateMachineSystems;
-pub use traits::Clock;
-pub use traits::PeriodicStateMachine;
-pub use traits::StateMachine;
 
 // no test_usage necessary

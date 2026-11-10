@@ -2,13 +2,13 @@ use std::any::TypeId;
 
 use bevy::prelude::SystemSet;
 
-use crate::StateMachine;
-use crate::basic;
+use crate::StateMachineStage;
+use crate::traits::StateMachine;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StateMachineSystems {
     pub machine: TypeId,
-    pub stage: basic::enums::StateMachineStage,
+    pub stage: StateMachineStage,
 }
 
 impl StateMachineSystems {
@@ -16,7 +16,7 @@ impl StateMachineSystems {
     pub const fn collect_inputs<M: StateMachine>() -> Self {
         Self {
             machine: TypeId::of::<M>(),
-            stage: basic::enums::StateMachineStage::CollectInputs,
+            stage: StateMachineStage::CollectInputs,
         }
     }
 
@@ -24,7 +24,7 @@ impl StateMachineSystems {
     pub const fn step<M: StateMachine>() -> Self {
         Self {
             machine: TypeId::of::<M>(),
-            stage: basic::enums::StateMachineStage::Step,
+            stage: StateMachineStage::Step,
         }
     }
 
@@ -32,7 +32,7 @@ impl StateMachineSystems {
     pub const fn perform_outputs<M: StateMachine>() -> Self {
         Self {
             machine: TypeId::of::<M>(),
-            stage: basic::enums::StateMachineStage::PerformOutputs,
+            stage: StateMachineStage::PerformOutputs,
         }
     }
 }
@@ -42,8 +42,7 @@ mod tests {
     use super::*;
     use bevy::prelude::{Message, Resource};
 
-    use crate::Clock;
-    use crate::StateMachine;
+    use crate::traits::{Clock, StateMachine};
 
     #[derive(Message)]
     struct ProbeInput;
@@ -76,15 +75,15 @@ mod tests {
     fn test_usage() {
         assert_eq!(
             StateMachineSystems::collect_inputs::<Probe>().stage,
-            basic::enums::StateMachineStage::CollectInputs
+            StateMachineStage::CollectInputs
         );
         assert_eq!(
             StateMachineSystems::step::<Probe>().stage,
-            basic::enums::StateMachineStage::Step
+            StateMachineStage::Step
         );
         assert_eq!(
             StateMachineSystems::perform_outputs::<Probe>().stage,
-            basic::enums::StateMachineStage::PerformOutputs
+            StateMachineStage::PerformOutputs
         );
         assert_eq!(
             StateMachineSystems::step::<Probe>().machine,
