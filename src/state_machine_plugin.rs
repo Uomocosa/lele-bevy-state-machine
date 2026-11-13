@@ -2,12 +2,10 @@ use std::marker::PhantomData;
 
 use atomic_delegate_macros::atomic_delegates;
 use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
-use bevy::prelude::{
-    App, First, IntoScheduleConfigs, Message, Messages, Plugin, Update, resource_exists,
-};
+use bevy::prelude::{App, First, IntoScheduleConfigs, Message, Messages, Plugin, Update};
 
 #[cfg(feature = "testing")]
-use bevy::prelude::not;
+use bevy::prelude::{not, resource_exists};
 use bevy::time::common_conditions::on_timer;
 
 use crate::Now;
@@ -141,7 +139,6 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
     use derive_more::Deref;
 
-    use crate::Now;
     #[cfg(feature = "testing")]
     use crate::testing;
     use crate::traits::Clock;
