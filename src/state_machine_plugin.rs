@@ -2,13 +2,21 @@ use std::marker::PhantomData;
 
 use atomic_delegate_macros::atomic_delegates;
 use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
-use bevy::prelude::{App, IntoScheduleConfigs, Message, Plugin, Update};
+use bevy::prelude::{
+    App, First, IntoScheduleConfigs, Message, Messages, Plugin, Update, resource_exists,
+};
+
+#[cfg(feature = "testing")]
+use bevy::prelude::not;
 use bevy::time::common_conditions::on_timer;
 
+use crate::Now;
 use crate::bevy_systems;
 use crate::forward_cursor::ForwardCursor;
 use crate::state_machine_systems::StateMachineSystems;
-use crate::traits::{PeriodicStateMachine, StateMachine};
+#[cfg(feature = "testing")]
+use crate::testing;
+use crate::traits::{Clock, PeriodicStateMachine, StateMachine};
 
 pub struct StateMachinePlugin<M> {
     pub(crate) add_periodic_systems: Option<fn(&mut App)>,
@@ -28,9 +36,32 @@ impl<M: StateMachine> Default for StateMachinePlugin<M> {
     }
 }
 
-#[rustfmt::skip]
 impl<M: StateMachine> Plugin for StateMachinePlugin<M> {
-    fn build(&self, app: &mut App) { self.build_plugin(app); }
+    fn build(&self, app: &mut App) {
+        app.init_resource::<Messages<M::Input>>();
+        app.add_message::<M::Output>();
+        if !app.world().contains_resource::<Now<M::Now>>() {
+            app.insert_resource(Now(M::Now::now()));
+            #[cfg(feature = "testing")]
+            app.add_systems(
+                First,
+                bevy_systems::refresh_now::<M::Now>
+                    .run_if(not(resource_exists::<testing::FrozenClock>)),
+            );
+            #[cfg(not(feature = "testing"))]
+            app.add_systems(First, bevy_systems::refresh_now::<M::Now>);
+        }
+        let extra_schedules = self.extra_update_schedules.iter().map(|label| label());
+        for schedule in std::iter::once(Update.intern()).chain(extra_schedules) {
+            Self::configure_update_schedule::<M>(app, schedule);
+            for adapter in &self.adapters {
+                adapter(app, schedule);
+            }
+        }
+        if let Some(add_periodic_systems) = self.add_periodic_systems {
+            add_periodic_systems(app);
+        }
+    }
 }
 
 impl<M: StateMachine> StateMachinePlugin<M> {
@@ -92,8 +123,6 @@ impl<M: PeriodicStateMachine> StateMachinePlugin<M> {
 
 #[atomic_delegates]
 impl<M: StateMachine> StateMachinePlugin<M> {
-    pub(crate) fn build_plugin(&self, app: &mut App) {}
-
     pub(crate) fn configure_update_schedule<Machine: StateMachine>(
         app: &mut App,
         schedule: InternedScheduleLabel,

@@ -1,1 +1,6 @@
 [lele.lint]
+
+[[lele.lint.inline_trait_methods]]
+trait   = "bevy::app::Plugin"
+methods = ["build", "ready", "finish", "cleanup"]
+reason  = "plugin lifecycle methods are the plugin's wiring; read them next to the plugin struct"
