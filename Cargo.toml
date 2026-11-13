@@ -27,7 +27,7 @@ module_inception = "allow"
 missing_errors_doc = "allow"
 
 [dependencies]
-atomic-delegate-macros = { path = "../lele-rust-linter/crates/atomic-delegate-macros" }
+atomic-delegate-macros = { git = "https://github.com/Uomocosa/lele-rust-linter", tag = "v0.0.13" }
 bevy = { version = "=0.20.1", default-features = false }
 derive_more = { version = "=2.1.1", features = ["deref"] }
 
