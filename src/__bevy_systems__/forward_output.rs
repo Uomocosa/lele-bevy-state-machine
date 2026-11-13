@@ -1,14 +1,17 @@
-use bevy::prelude::{Message, MessageReader, MessageWriter};
+use bevy::prelude::{Message, MessageWriter, Messages, Res, ResMut};
 
+use crate::forward_cursor::ForwardCursor;
 use crate::traits::StateMachine;
 
 pub fn forward_output<M: StateMachine, T: Message>(
-    mut outputs: MessageReader<M::Output>,
+    mut cursor: ResMut<ForwardCursor<M, M::Output>>,
+    outputs: Res<Messages<M::Output>>,
     mut forwarded: MessageWriter<T>,
 ) where
     for<'o> Option<T>: From<&'o M::Output>,
 {
-    forwarded.write_batch(outputs.read().filter_map(Option::<T>::from));
+    let outputs = outputs.into_inner();
+    forwarded.write_batch(cursor.cursor.read(outputs).filter_map(Option::<T>::from));
 }
 
 #[cfg(test)]
@@ -58,6 +61,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_message::<Count>();
         app.add_message::<Total>();
+        app.init_resource::<ForwardCursor<Counter, Count>>();
         app.add_systems(Update, forward_output::<Counter, Total>);
         app.world_mut()
             .resource_mut::<Messages<Count>>()

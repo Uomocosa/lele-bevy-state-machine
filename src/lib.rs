@@ -2,6 +2,7 @@
 mod basic;
 #[path = "__bevy_systems__/mod.rs"]
 pub mod bevy_systems;
+mod forward_cursor;
 #[path = "../__methods__/mod.rs"]
 mod methods;
 mod state_machine_plugin;

@@ -1,14 +1,17 @@
-use bevy::prelude::{Message, MessageReader, MessageWriter};
+use bevy::prelude::{Message, MessageWriter, Messages, Res, ResMut};
 
+use crate::forward_cursor::ForwardCursor;
 use crate::traits::StateMachine;
 
 pub fn forward_input<M: StateMachine, E: Message>(
-    mut events: MessageReader<E>,
+    mut forwarded: ResMut<ForwardCursor<M, E>>,
+    events: Res<Messages<E>>,
     mut inputs: MessageWriter<M::Input>,
 ) where
     for<'e> M::Input: From<&'e E>,
 {
-    inputs.write_batch(events.read().map(M::Input::from));
+    let events = events.into_inner();
+    inputs.write_batch(forwarded.cursor.read(events).map(M::Input::from));
 }
 
 #[cfg(test)]
@@ -58,6 +61,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_message::<Press>();
         app.init_resource::<Messages<Pressed>>();
+        app.init_resource::<ForwardCursor<Keyboard, Press>>();
         app.add_systems(Update, forward_input::<Keyboard, Press>);
         app.world_mut()
             .resource_mut::<Messages<Press>>()

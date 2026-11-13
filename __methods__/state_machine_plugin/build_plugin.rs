@@ -24,15 +24,15 @@ pub fn build_plugin<M: StateMachine>(plugin: &StateMachinePlugin<M>, app: &mut A
         #[cfg(not(feature = "testing"))]
         app.add_systems(First, bevy_systems::refresh_now::<M::Now>);
     }
-    StateMachinePlugin::<M>::configure_update_schedule::<M>(app, Update.intern());
-    for add_extra_schedule in &plugin.extra_update_schedules {
-        add_extra_schedule(app);
+    let extra_schedules = plugin.extra_update_schedules.iter().map(|label| label());
+    for schedule in std::iter::once(Update.intern()).chain(extra_schedules) {
+        StateMachinePlugin::<M>::configure_update_schedule::<M>(app, schedule);
+        for adapter in &plugin.adapters {
+            adapter(app, schedule);
+        }
     }
     if let Some(add_periodic_systems) = plugin.add_periodic_systems {
         add_periodic_systems(app);
-    }
-    for adapter in &plugin.adapters {
-        adapter(app);
     }
 }
 

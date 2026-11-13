@@ -5,15 +5,15 @@ use bevy::ecs::schedule::{InternedScheduleLabel, ScheduleLabel};
 use bevy::prelude::{App, IntoScheduleConfigs, Message, Plugin, Update};
 use bevy::time::common_conditions::on_timer;
 
-use crate::basic::extra_schedule_setup::ExtraScheduleSetup;
 use crate::bevy_systems;
+use crate::forward_cursor::ForwardCursor;
 use crate::state_machine_systems::StateMachineSystems;
 use crate::traits::{PeriodicStateMachine, StateMachine};
 
 pub struct StateMachinePlugin<M> {
     pub(crate) add_periodic_systems: Option<fn(&mut App)>,
-    pub(crate) extra_update_schedules: Vec<ExtraScheduleSetup>,
-    pub(crate) adapters: Vec<fn(&mut App)>,
+    pub(crate) extra_update_schedules: Vec<Box<dyn Fn() -> InternedScheduleLabel + Send + Sync>>,
+    pub(crate) adapters: Vec<fn(&mut App, InternedScheduleLabel)>,
     marker: PhantomData<fn() -> M>,
 }
 
@@ -37,9 +37,7 @@ impl<M: StateMachine> StateMachinePlugin<M> {
     #[must_use]
     pub fn also_update_in(mut self, schedule: impl ScheduleLabel) -> Self {
         self.extra_update_schedules
-            .push(Box::new(move |app: &mut App| {
-                Self::configure_update_schedule::<M>(app, schedule.intern());
-            }));
+            .push(Box::new(move || schedule.intern()));
         self
     }
 
@@ -48,9 +46,10 @@ impl<M: StateMachine> StateMachinePlugin<M> {
     where
         for<'e> M::Input: From<&'e E>,
     {
-        self.adapters.push(|app: &mut App| {
+        self.adapters.push(|app: &mut App, schedule| {
+            app.init_resource::<ForwardCursor<M, E>>();
             app.add_systems(
-                Update,
+                schedule,
                 bevy_systems::forward_input::<M, E>
                     .in_set(StateMachineSystems::collect_inputs::<M>()),
             );
@@ -63,9 +62,10 @@ impl<M: StateMachine> StateMachinePlugin<M> {
     where
         for<'o> Option<T>: From<&'o M::Output>,
     {
-        self.adapters.push(|app: &mut App| {
+        self.adapters.push(|app: &mut App, schedule| {
+            app.init_resource::<ForwardCursor<M, M::Output>>();
             app.add_systems(
-                Update,
+                schedule,
                 bevy_systems::forward_output::<M, T>
                     .in_set(StateMachineSystems::perform_outputs::<M>()),
             );
@@ -311,6 +311,68 @@ mod tests {
     #[test]
     fn input_from_forwards_events_as_inputs() {
         let mut app = counter_app(StateMachinePlugin::default().input_from::<Bump>());
+        app.add_message::<Bump>();
+        app.world_mut()
+            .resource_mut::<Messages<Bump>>()
+            .write(Bump(4));
+        app.update();
+        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(4)]);
+    }
+
+    #[test]
+    fn output_into_forwards_outputs_produced_in_extra_schedule() {
+        fn write_input(mut inputs: MessageWriter<CounterInput>) {
+            inputs.write(CounterInput::Add(5));
+        }
+
+        let mut app = counter_app(
+            StateMachinePlugin::default()
+                .output_into::<Mirror>()
+                .also_update_in(Last),
+        );
+        app.add_message::<Mirror>();
+        app.add_systems(
+            Last,
+            write_input.in_set(StateMachineSystems::collect_inputs::<CounterMachine>()),
+        );
+        app.update();
+        let mirrored: Vec<u32> = app
+            .world_mut()
+            .resource_mut::<Messages<Mirror>>()
+            .drain()
+            .map(|mirror| *mirror)
+            .collect();
+        assert_eq!(mirrored, vec![5]);
+    }
+
+    #[test]
+    fn probe_update_output_forwarded_once_with_extra_schedule() {
+        let mut app = counter_app(
+            StateMachinePlugin::default()
+                .output_into::<Mirror>()
+                .also_update_in(Last),
+        );
+        app.add_message::<Mirror>();
+        app.world_mut()
+            .resource_mut::<Messages<CounterInput>>()
+            .write(CounterInput::Add(5));
+        app.update();
+        let mirrored: Vec<u32> = app
+            .world_mut()
+            .resource_mut::<Messages<Mirror>>()
+            .drain()
+            .map(|mirror| *mirror)
+            .collect();
+        assert_eq!(mirrored, vec![5]);
+    }
+
+    #[test]
+    fn probe_input_forwarded_once_with_extra_schedule() {
+        let mut app = counter_app(
+            StateMachinePlugin::default()
+                .input_from::<Bump>()
+                .also_update_in(Last),
+        );
         app.add_message::<Bump>();
         app.world_mut()
             .resource_mut::<Messages<Bump>>()
