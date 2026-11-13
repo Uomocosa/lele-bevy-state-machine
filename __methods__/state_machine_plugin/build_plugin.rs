@@ -1,11 +1,11 @@
+use bevy::ecs::schedule::ScheduleLabel;
 #[cfg(feature = "testing")]
 use bevy::prelude::not;
-use bevy::prelude::{App, First, IntoScheduleConfigs, Last, Messages, Update, resource_exists};
+use bevy::prelude::{App, First, IntoScheduleConfigs, Messages, Update, resource_exists};
 
 use crate::Now;
 use crate::bevy_systems;
 use crate::state_machine_plugin::StateMachinePlugin;
-use crate::state_machine_systems::StateMachineSystems;
 #[cfg(feature = "testing")]
 use crate::testing;
 use crate::traits::{Clock, StateMachine};
@@ -24,40 +24,15 @@ pub fn build_plugin<M: StateMachine>(plugin: &StateMachinePlugin<M>, app: &mut A
         #[cfg(not(feature = "testing"))]
         app.add_systems(First, bevy_systems::refresh_now::<M::Now>);
     }
-    app.configure_sets(
-        Update,
-        (
-            StateMachineSystems::collect_inputs::<M>(),
-            StateMachineSystems::step::<M>(),
-            StateMachineSystems::perform_outputs::<M>(),
-        )
-            .chain(),
-    );
-    app.add_systems(
-        Update,
-        bevy_systems::step_state_machine::<M>
-            .in_set(StateMachineSystems::step::<M>())
-            .run_if(resource_exists::<M>),
-    );
-    if plugin.is_stepped_on_exit {
-        app.configure_sets(
-            Last,
-            (
-                StateMachineSystems::collect_inputs::<M>(),
-                StateMachineSystems::step::<M>(),
-                StateMachineSystems::perform_outputs::<M>(),
-            )
-                .chain(),
-        );
-        app.add_systems(
-            Last,
-            bevy_systems::step_state_machine::<M>
-                .in_set(StateMachineSystems::step::<M>())
-                .run_if(resource_exists::<M>),
-        );
+    StateMachinePlugin::<M>::configure_update_schedule::<M>(app, Update.intern());
+    for add_extra_schedule in &plugin.extra_update_schedules {
+        add_extra_schedule(app);
     }
-    if let Some(add_tick_system) = plugin.add_tick_system {
-        add_tick_system(app);
+    if let Some(add_periodic_systems) = plugin.add_periodic_systems {
+        add_periodic_systems(app);
+    }
+    for adapter in &plugin.adapters {
+        adapter(app);
     }
 }
 

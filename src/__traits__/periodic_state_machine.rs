@@ -4,7 +4,7 @@ use crate::traits::StateMachine;
 
 pub trait PeriodicStateMachine: StateMachine {
     const TICK_INTERVAL: Duration;
-    fn tick_input() -> Self::Input;
+    fn tick(&mut self, now: Self::Now) -> Vec<Self::Output>;
 }
 
 #[cfg(test)]
@@ -15,9 +15,7 @@ mod tests {
     use crate::traits::{Clock, StateMachine};
 
     #[derive(Message, Debug, PartialEq)]
-    enum HeartbeatInput {
-        Beat,
-    }
+    struct HeartbeatInput;
 
     #[derive(Message)]
     struct HeartbeatOutput;
@@ -45,14 +43,14 @@ mod tests {
 
     impl PeriodicStateMachine for Heartbeat {
         const TICK_INTERVAL: Duration = Duration::from_millis(50);
-        fn tick_input() -> Self::Input {
-            HeartbeatInput::Beat
+        fn tick(&mut self, _now: Self::Now) -> Vec<Self::Output> {
+            vec![HeartbeatOutput]
         }
     }
 
     #[test]
     fn test_usage() {
         assert_eq!(Heartbeat::TICK_INTERVAL, Duration::from_millis(50));
-        assert_eq!(Heartbeat::tick_input(), HeartbeatInput::Beat);
+        assert_eq!(Heartbeat.tick(TestTick).len(), 1);
     }
 }

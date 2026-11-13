@@ -3,7 +3,7 @@ use bevy::prelude::{MessageWriter, Messages, Res, ResMut};
 use crate::Now;
 use crate::traits::StateMachine;
 
-pub fn step_state_machine<M: StateMachine>(
+pub fn update_state_machine<M: StateMachine>(
     mut machine: ResMut<M>,
     mut inputs: ResMut<Messages<M::Input>>,
     mut outputs: MessageWriter<M::Output>,
@@ -66,7 +66,7 @@ mod tests {
         app.add_message::<BumpOutput>();
         app.insert_resource(Now(BumpNow));
         app.insert_resource(Bumper(AtomicU32::new(1)));
-        app.add_systems(Update, step_state_machine::<Bumper>);
+        app.add_systems(Update, update_state_machine::<Bumper>);
         app.world_mut()
             .resource_mut::<Messages<BumpInput>>()
             .write(BumpInput(41));

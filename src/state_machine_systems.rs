@@ -21,10 +21,10 @@ impl StateMachineSystems {
     }
 
     #[must_use]
-    pub const fn step<M: StateMachine>() -> Self {
+    pub const fn apply_inputs<M: StateMachine>() -> Self {
         Self {
             machine: TypeId::of::<M>(),
-            stage: StateMachineStage::Step,
+            stage: StateMachineStage::ApplyInputs,
         }
     }
 
@@ -78,15 +78,15 @@ mod tests {
             StateMachineStage::CollectInputs
         );
         assert_eq!(
-            StateMachineSystems::step::<Probe>().stage,
-            StateMachineStage::Step
+            StateMachineSystems::apply_inputs::<Probe>().stage,
+            StateMachineStage::ApplyInputs
         );
         assert_eq!(
             StateMachineSystems::perform_outputs::<Probe>().stage,
             StateMachineStage::PerformOutputs
         );
         assert_eq!(
-            StateMachineSystems::step::<Probe>().machine,
+            StateMachineSystems::apply_inputs::<Probe>().machine,
             TypeId::of::<Probe>()
         );
     }

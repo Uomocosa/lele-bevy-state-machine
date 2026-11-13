@@ -1,9 +1,15 @@
-use bevy::prelude::MessageWriter;
+use bevy::prelude::{MessageWriter, Res, ResMut};
 
+use crate::Now;
 use crate::traits::PeriodicStateMachine;
 
-pub fn write_tick_input<M: PeriodicStateMachine>(mut inputs: MessageWriter<M::Input>) {
-    inputs.write(M::tick_input());
+pub fn tick_state_machine<M: PeriodicStateMachine>(
+    mut machine: ResMut<M>,
+    mut outputs: MessageWriter<M::Output>,
+    now: Res<Now<M::Now>>,
+) {
+    let now = now.into_inner();
+    outputs.write_batch(machine.tick(**now));
 }
 
 #[cfg(test)]
@@ -11,17 +17,18 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
     use bevy::prelude::*;
+    use derive_more::Deref;
 
     use crate::traits::{Clock, PeriodicStateMachine, StateMachine};
 
     #[derive(Message, Debug, PartialEq)]
-    enum PulseInput {
-        Pulse,
-    }
+    struct PulseInput;
 
-    #[derive(Message)]
-    struct PulseOutput;
+    #[derive(Message, Debug, Deref, PartialEq)]
+    struct PulseOutput(u32);
 
     #[derive(Clone, Copy)]
     struct PulseNow;
@@ -32,8 +39,8 @@ mod tests {
         }
     }
 
-    #[derive(Resource)]
-    struct Pulser;
+    #[derive(Resource, Deref)]
+    struct Pulser(AtomicU32);
 
     impl StateMachine for Pulser {
         type Input = PulseInput;
@@ -46,8 +53,8 @@ mod tests {
 
     impl PeriodicStateMachine for Pulser {
         const TICK_INTERVAL: Duration = Duration::from_millis(10);
-        fn tick_input() -> Self::Input {
-            PulseInput::Pulse
+        fn tick(&mut self, _now: Self::Now) -> Vec<Self::Output> {
+            vec![PulseOutput(self.fetch_add(1, Ordering::SeqCst))]
         }
     }
 
@@ -55,14 +62,16 @@ mod tests {
     fn test_usage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.init_resource::<Messages<PulseInput>>();
-        app.add_systems(Update, write_tick_input::<Pulser>);
+        app.insert_resource(Now(PulseNow));
+        app.insert_resource(Pulser(AtomicU32::new(0)));
+        app.add_message::<PulseOutput>();
+        app.add_systems(Update, tick_state_machine::<Pulser>);
         app.update();
-        let inputs: Vec<PulseInput> = app
+        let outputs: Vec<PulseOutput> = app
             .world_mut()
-            .resource_mut::<Messages<PulseInput>>()
+            .resource_mut::<Messages<PulseOutput>>()
             .drain()
             .collect();
-        assert_eq!(inputs, vec![PulseInput::Pulse]);
+        assert_eq!(outputs, vec![PulseOutput(0)]);
     }
 }
