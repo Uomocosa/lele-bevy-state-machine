@@ -4,7 +4,7 @@ use crate::forward_cursor::ForwardCursor;
 use crate::traits::StateMachine;
 
 pub fn forward_output<M: StateMachine, T: Message>(
-    mut cursor: ResMut<ForwardCursor<M, M::Output>>,
+    mut cursor: ResMut<ForwardCursor<(M, T), M::Output>>,
     outputs: Res<Messages<M::Output>>,
     mut forwarded: MessageWriter<T>,
 ) where
@@ -61,7 +61,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_message::<Count>();
         app.add_message::<Total>();
-        app.init_resource::<ForwardCursor<Counter, Count>>();
+        app.init_resource::<ForwardCursor<(Counter, Total), Count>>();
         app.add_systems(Update, forward_output::<Counter, Total>);
         app.world_mut()
             .resource_mut::<Messages<Count>>()

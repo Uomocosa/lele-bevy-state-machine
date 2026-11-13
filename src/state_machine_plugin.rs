@@ -63,7 +63,7 @@ impl<M: StateMachine> StateMachinePlugin<M> {
         for<'o> Option<T>: From<&'o M::Output>,
     {
         self.adapters.push(|app: &mut App, schedule| {
-            app.init_resource::<ForwardCursor<M, M::Output>>();
+            app.init_resource::<ForwardCursor<(M, T), M::Output>>();
             app.add_systems(
                 schedule,
                 bevy_systems::forward_output::<M, T>
@@ -174,6 +174,15 @@ mod tests {
     impl From<&CounterOutput> for Option<Mirror> {
         fn from(output: &CounterOutput) -> Self {
             (**output > 3).then_some(Mirror(**output))
+        }
+    }
+
+    #[derive(Debug, Clone, Deref, PartialEq, Message)]
+    struct Echo(u32);
+
+    impl From<&CounterOutput> for Option<Echo> {
+        fn from(output: &CounterOutput) -> Self {
+            Some(Echo(**output))
         }
     }
 
@@ -364,6 +373,35 @@ mod tests {
             .map(|mirror| *mirror)
             .collect();
         assert_eq!(mirrored, vec![5]);
+    }
+
+    #[test]
+    fn two_output_into_adapters_each_forward_every_output() {
+        let mut app = counter_app(
+            StateMachinePlugin::default()
+                .output_into::<Mirror>()
+                .output_into::<Echo>(),
+        );
+        app.add_message::<Mirror>();
+        app.add_message::<Echo>();
+        app.world_mut()
+            .resource_mut::<Messages<CounterInput>>()
+            .write(CounterInput::Add(5));
+        app.update();
+        let mirrored: Vec<u32> = app
+            .world_mut()
+            .resource_mut::<Messages<Mirror>>()
+            .drain()
+            .map(|mirror| *mirror)
+            .collect();
+        let echoed: Vec<u32> = app
+            .world_mut()
+            .resource_mut::<Messages<Echo>>()
+            .drain()
+            .map(|echo| *echo)
+            .collect();
+        assert_eq!(mirrored, vec![5]);
+        assert_eq!(echoed, vec![5]);
     }
 
     #[test]
