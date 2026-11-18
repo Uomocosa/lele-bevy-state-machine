@@ -17,5 +17,3 @@ impl<M, E: Message> Default for ForwardCursor<M, E> {
         }
     }
 }
-
-// no test_usage necessary

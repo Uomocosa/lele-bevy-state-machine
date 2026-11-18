@@ -466,6 +466,14 @@ mod tests {
         assert_eq!(mirrored, vec![7]);
     }
 
+    #[test]
+    fn now_is_refreshed_from_the_machines_clock_each_frame() {
+        let mut app = counter_app(StateMachinePlugin::default());
+        app.world_mut().insert_resource(Now(TestNow(0)));
+        app.update();
+        assert_eq!(**app.world().resource::<Now<TestNow>>(), TestNow(11));
+    }
+
     #[cfg(feature = "testing")]
     #[test]
     fn frozen_clock_freezes_now() {

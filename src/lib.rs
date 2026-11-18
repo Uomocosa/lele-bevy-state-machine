@@ -16,5 +16,3 @@ pub use basic::enums::StateMachineStage;
 pub use basic::resources::Now;
 pub use state_machine_plugin::StateMachinePlugin;
 pub use state_machine_systems::StateMachineSystems;
-
-// no test_usage necessary
