@@ -5,3 +5,4 @@
 .pre-commit-config.yaml
 .pre-commit-config.json
 *.sync-conflict-*
+.local-run/
