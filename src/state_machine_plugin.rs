@@ -131,7 +131,7 @@ impl<M: StateMachine> StateMachinePlugin<M> {
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
-    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::atomic::AtomicU32;
     use std::time::Duration;
 
     use super::*;
@@ -139,198 +139,125 @@ mod tests {
     use bevy::time::TimeUpdateStrategy;
     use derive_more::Deref;
 
-    #[cfg(feature = "testing")]
     use crate::testing;
-    use crate::traits::Clock;
-
-    #[derive(Resource, Deref)]
-    struct CounterMachine(AtomicU32);
-
-    #[derive(Debug, Clone, PartialEq, Message)]
-    enum CounterInput {
-        Add(u32),
-    }
-
-    #[derive(Debug, Clone, Deref, PartialEq, Message)]
-    struct CounterOutput(u32);
-
-    #[derive(Debug, Clone, Deref, PartialEq, Message)]
-    struct Bump(u32);
-
-    #[derive(Debug, Clone, Deref, PartialEq, Message)]
-    struct Mirror(u32);
-
-    #[derive(Debug, Clone, Copy, Deref, PartialEq, Eq)]
-    struct TestNow(u64);
-
-    impl Clock for TestNow {
-        fn now() -> Self {
-            Self(11)
-        }
-    }
-
-    impl StateMachine for CounterMachine {
-        type Input = CounterInput;
-        type Output = CounterOutput;
-        type Now = TestNow;
-        fn update(&mut self, input: Self::Input, _now: Self::Now) -> Vec<Self::Output> {
-            let CounterInput::Add(value) = input;
-            self.store(
-                self.load(Ordering::SeqCst).wrapping_add(value),
-                Ordering::SeqCst,
-            );
-            vec![CounterOutput(self.load(Ordering::SeqCst))]
-        }
-    }
-
-    impl PeriodicStateMachine for CounterMachine {
-        const TICK_INTERVAL: Duration = Duration::from_millis(1);
-        fn tick(&mut self, _now: Self::Now) -> Vec<Self::Output> {
-            self.fetch_add(100, Ordering::SeqCst);
-            vec![CounterOutput(self.load(Ordering::SeqCst))]
-        }
-    }
-
-    impl From<&Bump> for CounterInput {
-        fn from(bump: &Bump) -> Self {
-            Self::Add(**bump)
-        }
-    }
-
-    impl From<&CounterOutput> for Option<Mirror> {
-        fn from(output: &CounterOutput) -> Self {
-            (**output > 3).then_some(Mirror(**output))
-        }
-    }
-
-    #[derive(Debug, Clone, Deref, PartialEq, Message)]
-    struct Echo(u32);
-
-    impl From<&CounterOutput> for Option<Echo> {
-        fn from(output: &CounterOutput) -> Self {
-            Some(Echo(**output))
-        }
-    }
-
-    fn counter_app(plugin: StateMachinePlugin<CounterMachine>) -> App {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
-        app.add_plugins(plugin);
-        app.world_mut()
-            .insert_resource(CounterMachine(AtomicU32::new(0)));
-        app
-    }
-
-    fn drain_outputs(app: &mut App) -> Vec<CounterOutput> {
-        app.world_mut()
-            .resource_mut::<Messages<CounterOutput>>()
-            .drain()
-            .collect()
-    }
 
     #[test]
     fn test_usage() {
-        let mut app = counter_app(StateMachinePlugin::default());
+        let mut app = testing::counter_app(StateMachinePlugin::default());
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(2));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(2));
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(2)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(2)]
+        );
     }
 
     #[test]
     fn inputs_written_before_machine_insert_are_not_lost() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.add_plugins(StateMachinePlugin::<CounterMachine>::default());
+        app.add_plugins(StateMachinePlugin::<testing::CounterMachine>::default());
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(3));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(3));
         app.update();
         app.world_mut()
-            .insert_resource(CounterMachine(AtomicU32::new(0)));
+            .insert_resource(testing::CounterMachine(AtomicU32::new(0)));
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(3)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(3)]
+        );
     }
 
     #[test]
     fn outputs_readable_in_perform_outputs_same_frame() {
         #[derive(Resource, Default, Deref)]
-        struct Observed(Mutex<Vec<CounterOutput>>);
+        struct Observed(Mutex<Vec<testing::CounterOutput>>);
 
-        fn write_input(mut inputs: MessageWriter<CounterInput>) {
-            inputs.write(CounterInput::Add(5));
+        fn write_input(mut inputs: MessageWriter<testing::CounterInput>) {
+            inputs.write(testing::CounterInput::Add(5));
         }
 
-        fn read_outputs(mut reader: MessageReader<CounterOutput>, observed: Res<Observed>) {
+        fn read_outputs(
+            mut reader: MessageReader<testing::CounterOutput>,
+            observed: Res<Observed>,
+        ) {
             let observed = observed.into_inner();
             observed.lock().unwrap().extend(reader.read().cloned());
         }
 
-        let mut app = counter_app(StateMachinePlugin::default());
+        let mut app = testing::counter_app(StateMachinePlugin::default());
         app.init_resource::<Observed>();
         app.add_systems(
             Update,
-            write_input.in_set(StateMachineSystems::collect_inputs::<CounterMachine>()),
+            write_input.in_set(StateMachineSystems::collect_inputs::<testing::CounterMachine>()),
         );
         app.add_systems(
             Update,
-            read_outputs.in_set(StateMachineSystems::perform_outputs::<CounterMachine>()),
+            read_outputs.in_set(StateMachineSystems::perform_outputs::<
+                testing::CounterMachine,
+            >()),
         );
         app.update();
         let observed = app.world().resource::<Observed>();
-        assert_eq!(*observed.lock().unwrap(), vec![CounterOutput(5)]);
+        assert_eq!(*observed.lock().unwrap(), vec![testing::CounterOutput(5)]);
     }
 
     #[test]
     fn periodic_ticks_once_per_frame() {
-        let mut app = counter_app(StateMachinePlugin::default().periodic());
+        let mut app = testing::counter_app(StateMachinePlugin::default().periodic());
         app.world_mut()
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)));
         app.update();
         app.update();
         app.update();
         assert_eq!(
-            drain_outputs(&mut app),
-            vec![CounterOutput(100), CounterOutput(200)]
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(100), testing::CounterOutput(200)]
         );
     }
 
     #[test]
     fn periodic_tick_runs_after_same_frame_inputs() {
-        let mut app = counter_app(StateMachinePlugin::default().periodic());
+        let mut app = testing::counter_app(StateMachinePlugin::default().periodic());
         app.world_mut()
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)));
         app.update();
-        drain_outputs(&mut app);
+        testing::drain_messages::<testing::CounterOutput>(&mut app);
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(5));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(5));
         app.update();
         assert_eq!(
-            drain_outputs(&mut app),
-            vec![CounterOutput(5), CounterOutput(105)]
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(5), testing::CounterOutput(105)]
         );
     }
 
     #[test]
     fn also_update_in_steps_machine_in_extra_schedule() {
-        fn write_input(mut inputs: MessageWriter<CounterInput>) {
-            inputs.write(CounterInput::Add(5));
+        fn write_input(mut inputs: MessageWriter<testing::CounterInput>) {
+            inputs.write(testing::CounterInput::Add(5));
         }
 
-        let mut app = counter_app(StateMachinePlugin::default().also_update_in(Last));
+        let mut app = testing::counter_app(StateMachinePlugin::default().also_update_in(Last));
         app.add_systems(
             Last,
-            write_input.in_set(StateMachineSystems::collect_inputs::<CounterMachine>()),
+            write_input.in_set(StateMachineSystems::collect_inputs::<testing::CounterMachine>()),
         );
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(5)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(5)]
+        );
     }
 
     #[test]
     fn periodic_tick_does_not_run_in_extra_schedule() {
-        let mut app = counter_app(
+        let mut app = testing::counter_app(
             StateMachinePlugin::default()
                 .periodic()
                 .also_update_in(Last),
@@ -338,43 +265,48 @@ mod tests {
         app.world_mut()
             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(1)));
         app.update();
-        drain_outputs(&mut app);
+        testing::drain_messages::<testing::CounterOutput>(&mut app);
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(100)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(100)]
+        );
     }
 
     #[test]
     fn input_from_forwards_events_as_inputs() {
-        let mut app = counter_app(StateMachinePlugin::default().input_from::<Bump>());
-        app.add_message::<Bump>();
+        let mut app =
+            testing::counter_app(StateMachinePlugin::default().input_from::<testing::Bump>());
+        app.add_message::<testing::Bump>();
         app.world_mut()
-            .resource_mut::<Messages<Bump>>()
-            .write(Bump(4));
+            .resource_mut::<Messages<testing::Bump>>()
+            .write(testing::Bump(4));
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(4)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(4)]
+        );
     }
 
     #[test]
     fn output_into_forwards_outputs_produced_in_extra_schedule() {
-        fn write_input(mut inputs: MessageWriter<CounterInput>) {
-            inputs.write(CounterInput::Add(5));
+        fn write_input(mut inputs: MessageWriter<testing::CounterInput>) {
+            inputs.write(testing::CounterInput::Add(5));
         }
 
-        let mut app = counter_app(
+        let mut app = testing::counter_app(
             StateMachinePlugin::default()
-                .output_into::<Mirror>()
+                .output_into::<testing::Mirror>()
                 .also_update_in(Last),
         );
-        app.add_message::<Mirror>();
+        app.add_message::<testing::Mirror>();
         app.add_systems(
             Last,
-            write_input.in_set(StateMachineSystems::collect_inputs::<CounterMachine>()),
+            write_input.in_set(StateMachineSystems::collect_inputs::<testing::CounterMachine>()),
         );
         app.update();
-        let mirrored: Vec<u32> = app
-            .world_mut()
-            .resource_mut::<Messages<Mirror>>()
-            .drain()
+        let mirrored: Vec<u32> = testing::drain_messages::<testing::Mirror>(&mut app)
+            .into_iter()
             .map(|mirror| *mirror)
             .collect();
         assert_eq!(mirrored, vec![5]);
@@ -382,20 +314,18 @@ mod tests {
 
     #[test]
     fn probe_update_output_forwarded_once_with_extra_schedule() {
-        let mut app = counter_app(
+        let mut app = testing::counter_app(
             StateMachinePlugin::default()
-                .output_into::<Mirror>()
+                .output_into::<testing::Mirror>()
                 .also_update_in(Last),
         );
-        app.add_message::<Mirror>();
+        app.add_message::<testing::Mirror>();
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(5));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(5));
         app.update();
-        let mirrored: Vec<u32> = app
-            .world_mut()
-            .resource_mut::<Messages<Mirror>>()
-            .drain()
+        let mirrored: Vec<u32> = testing::drain_messages::<testing::Mirror>(&mut app)
+            .into_iter()
             .map(|mirror| *mirror)
             .collect();
         assert_eq!(mirrored, vec![5]);
@@ -403,27 +333,23 @@ mod tests {
 
     #[test]
     fn two_output_into_adapters_each_forward_every_output() {
-        let mut app = counter_app(
+        let mut app = testing::counter_app(
             StateMachinePlugin::default()
-                .output_into::<Mirror>()
-                .output_into::<Echo>(),
+                .output_into::<testing::Mirror>()
+                .output_into::<testing::Echo>(),
         );
-        app.add_message::<Mirror>();
-        app.add_message::<Echo>();
+        app.add_message::<testing::Mirror>();
+        app.add_message::<testing::Echo>();
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(5));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(5));
         app.update();
-        let mirrored: Vec<u32> = app
-            .world_mut()
-            .resource_mut::<Messages<Mirror>>()
-            .drain()
+        let mirrored: Vec<u32> = testing::drain_messages::<testing::Mirror>(&mut app)
+            .into_iter()
             .map(|mirror| *mirror)
             .collect();
-        let echoed: Vec<u32> = app
-            .world_mut()
-            .resource_mut::<Messages<Echo>>()
-            .drain()
+        let echoed: Vec<u32> = testing::drain_messages::<testing::Echo>(&mut app)
+            .into_iter()
             .map(|echo| *echo)
             .collect();
         assert_eq!(mirrored, vec![5]);
@@ -432,35 +358,37 @@ mod tests {
 
     #[test]
     fn probe_input_forwarded_once_with_extra_schedule() {
-        let mut app = counter_app(
+        let mut app = testing::counter_app(
             StateMachinePlugin::default()
-                .input_from::<Bump>()
+                .input_from::<testing::Bump>()
                 .also_update_in(Last),
         );
-        app.add_message::<Bump>();
+        app.add_message::<testing::Bump>();
         app.world_mut()
-            .resource_mut::<Messages<Bump>>()
-            .write(Bump(4));
+            .resource_mut::<Messages<testing::Bump>>()
+            .write(testing::Bump(4));
         app.update();
-        assert_eq!(drain_outputs(&mut app), vec![CounterOutput(4)]);
+        assert_eq!(
+            testing::drain_messages::<testing::CounterOutput>(&mut app),
+            vec![testing::CounterOutput(4)]
+        );
     }
 
     #[test]
     fn output_into_forwards_some_and_drops_none() {
-        let mut app = counter_app(StateMachinePlugin::default().output_into::<Mirror>());
-        app.add_message::<Mirror>();
+        let mut app =
+            testing::counter_app(StateMachinePlugin::default().output_into::<testing::Mirror>());
+        app.add_message::<testing::Mirror>();
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(2));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(2));
         app.update();
         app.world_mut()
-            .resource_mut::<Messages<CounterInput>>()
-            .write(CounterInput::Add(5));
+            .resource_mut::<Messages<testing::CounterInput>>()
+            .write(testing::CounterInput::Add(5));
         app.update();
-        let mirrored: Vec<u32> = app
-            .world_mut()
-            .resource_mut::<Messages<Mirror>>()
-            .drain()
+        let mirrored: Vec<u32> = testing::drain_messages::<testing::Mirror>(&mut app)
+            .into_iter()
             .map(|mirror| *mirror)
             .collect();
         assert_eq!(mirrored, vec![7]);
@@ -468,20 +396,27 @@ mod tests {
 
     #[test]
     fn now_is_refreshed_from_the_machines_clock_each_frame() {
-        let mut app = counter_app(StateMachinePlugin::default());
-        app.world_mut().insert_resource(Now(TestNow(0)));
+        let mut app = testing::counter_app(StateMachinePlugin::default());
+        app.world_mut()
+            .insert_resource(Now(testing::FixedMoment(0)));
         app.update();
-        assert_eq!(**app.world().resource::<Now<TestNow>>(), TestNow(11));
+        assert_eq!(
+            **app.world().resource::<Now<testing::FixedMoment>>(),
+            testing::FixedMoment(9)
+        );
     }
 
-    #[cfg(feature = "testing")]
     #[test]
     fn frozen_clock_freezes_now() {
-        let mut app = counter_app(StateMachinePlugin::default());
-        app.world_mut().insert_resource(Now(TestNow(41)));
+        let mut app = testing::counter_app(StateMachinePlugin::default());
+        app.world_mut()
+            .insert_resource(Now(testing::FixedMoment(41)));
         app.world_mut().insert_resource(testing::FrozenClock);
         app.update();
         app.update();
-        assert_eq!(**app.world().resource::<Now<TestNow>>(), TestNow(41));
+        assert_eq!(
+            **app.world().resource::<Now<testing::FixedMoment>>(),
+            testing::FixedMoment(41)
+        );
     }
 }

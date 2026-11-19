@@ -40,54 +40,26 @@ impl StateMachineSystems {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::prelude::{Message, Resource};
 
-    use crate::traits::{Clock, StateMachine};
-
-    #[derive(Message)]
-    struct ProbeInput;
-
-    #[derive(Message)]
-    struct ProbeOutput;
-
-    #[derive(Clone, Copy)]
-    struct ProbeNow;
-
-    impl Clock for ProbeNow {
-        fn now() -> Self {
-            Self
-        }
-    }
-
-    #[derive(Resource)]
-    struct Probe;
-
-    impl StateMachine for Probe {
-        type Input = ProbeInput;
-        type Output = ProbeOutput;
-        type Now = ProbeNow;
-        fn update(&mut self, _input: Self::Input, _now: Self::Now) -> Vec<Self::Output> {
-            Vec::new()
-        }
-    }
+    use crate::testing;
 
     #[test]
     fn test_usage() {
         assert_eq!(
-            StateMachineSystems::collect_inputs::<Probe>().stage,
+            StateMachineSystems::collect_inputs::<testing::Probe>().stage,
             StateMachineStage::CollectInputs
         );
         assert_eq!(
-            StateMachineSystems::apply_inputs::<Probe>().stage,
+            StateMachineSystems::apply_inputs::<testing::Probe>().stage,
             StateMachineStage::ApplyInputs
         );
         assert_eq!(
-            StateMachineSystems::perform_outputs::<Probe>().stage,
+            StateMachineSystems::perform_outputs::<testing::Probe>().stage,
             StateMachineStage::PerformOutputs
         );
         assert_eq!(
-            StateMachineSystems::apply_inputs::<Probe>().machine,
-            TypeId::of::<Probe>()
+            StateMachineSystems::apply_inputs::<testing::Probe>().machine,
+            TypeId::of::<testing::Probe>()
         );
     }
 }

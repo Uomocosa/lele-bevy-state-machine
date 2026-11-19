@@ -7,7 +7,7 @@ mod forward_cursor;
 mod methods;
 mod state_machine_plugin;
 mod state_machine_systems;
-#[cfg(feature = "testing")]
+#[cfg(any(test, feature = "testing"))]
 pub mod testing;
 #[path = "__traits__/mod.rs"]
 pub mod traits;
