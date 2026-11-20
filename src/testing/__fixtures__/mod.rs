@@ -1,10 +1,5 @@
 pub mod bump;
 pub mod counter_input;
-pub mod counter_output;
-pub mod double_input;
-pub mod double_output;
 pub mod echo;
-pub mod empty_input;
-pub mod empty_output;
 pub mod frozen_clock;
 pub mod mirror;
